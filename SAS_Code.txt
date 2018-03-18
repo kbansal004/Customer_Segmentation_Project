@@ -1,0 +1,92 @@
+libname hw4 "F:/CustomerProfile_Segmentation";
+run;
+
+proc import datafile = "H:\Mkt_SAS\HW4\pda.csv"
+            out = hw4.pda2001a
+			dbms = csv
+			replace;
+            getnames = yes;
+			run;
+proc import datafile = "H:\Mkt_SAS\HW4\pda_disc2001.csv"
+            out = hw4.pda_disc2001a
+			dbms = csv
+			replace;
+            getnames = yes;
+			run;
+
+proc stdize data = hw4.pda2001a out = hw4.pda2001 method = RANGE;
+var Innovator Use_message Use_cell Use_PIM Inf_passive INF_active remote_access	Share_info	Monitor	Email
+Web	M_media	ergonomic monthly price;
+run;
+
+
+proc cluster data = hw4.pda2001 method=ward ccc pseudo rmsstd rsquare nonorm out=hw4.pdatree;
+id ID;
+var Innovator Use_message Use_cell Use_PIM Inf_passive INF_active remote_access	Share_info	Monitor	Email
+Web	M_media	ergonomic monthly price;
+run;
+proc print data=hw4.pdatree (obs=50);
+run;
+
+proc tree data=hw4.pdatree out=Hw3pred.pdaNew nclusters = 4;
+id ID;
+copy Innovator Use_message Use_cell Use_PIM Inf_passive INF_active remote_access Share_info	Monitor	Email Web M_media ergonomic monthly price;
+run; 
+
+
+/*We have to merge first two datasets*/
+
+proc stdize data = hw4.pda_disc2001a out = hw4.pda_disc2001 method = RANGE;
+var Age Education Income Construction Emerg Sales Service Professional Compu PDA Cell_Ph PC Away Bus_W PC_Mag 
+Field_S M_Gourm;
+run;
+
+
+proc sort data = hw4.pdaNew;
+by ID;
+run;
+
+data hw4.merge2001;
+merge hw4.pdaNew hw4.pda_disc2001;
+by ID;
+run;
+proc sort data = hw4.merge2001;
+by cluster;
+run;
+
+proc means data=hw4.merge2001 nway;
+ by cluster;
+ output out=hw4.summclus(drop=_type_ freq ID) mean= ;
+run; 
+
+proc print data=hw4.profdata;
+Run;
+
+/*k means clustering*/
+proc fastclus data=hw4.pda2001 radius=0 replace=full maxclusters=4 list distance out=hw4.pdakmean;
+id id;
+var Innovator Use_message Use_cell Use_PIM Inf_passive INF_active remote_access	Share_info	Monitor	Email
+Web	M_media	ergonomic monthly price;
+run;
+proc print data=hw4.pdakmean (obs=50);
+run;
+
+/*profiling clusters*/
+/*merge datasets*/
+data hw4.newmerge2001;
+merge hw4.pdakmean Hw3pred.pda_disc2001;
+by ID;
+run;
+proc sort data = hw4.newmerge2001;
+by cluster;
+run;
+
+proc means data=hw4.newmerge2001 nway;
+ by cluster;
+ output out=hw4.sumnewmclus(drop=_type_ freq ID) mean= ;
+run; 
+proc print data=hw4.sumnewmclu (obs=50);
+run;
+
+proc print data=hw4.profnewdata;
+Run;
